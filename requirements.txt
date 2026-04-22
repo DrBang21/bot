@@ -1,0 +1,9 @@
+numpy
+librosa
+soundfile
+pyrubberband
+pyloudnorm
+torch
+demucs
+faster-whisper
+scikit-learn

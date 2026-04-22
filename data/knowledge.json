@@ -1,0 +1,169 @@
+{
+  "rule_8c94772c4e": {
+    "text": "When track A has a bridge section, use stem_layer transition. Layer B's instrumental during the bridge — it builds up gradually and reaches full volume 2 bars before the bridge ends. Switch to track B vocals at the bridge end. Bridges are natural transition zones because energy dips, making them ideal for blending.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "stem_layer",
+      "context": "bridge"
+    }
+  },
+  "rule_30f0991cf6": {
+    "text": "For stem_layer transitions the instrumental should always come in before the vocals. Layer the instrumental first to build anticipation, then bring in the full track with vocals at the switch point.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "stem_layer",
+      "context": "instrumental_first"
+    }
+  },
+  "rule_cee537298a": {
+    "text": "For stem_layer transitions without a bridge, start the instrumental layer at the end of the last chorus and run through the following section. Cap at the configured transition bars.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "stem_layer",
+      "context": "no_bridge"
+    }
+  },
+  "rule_f7aaa8da5b": {
+    "text": "For stem_layer transitions, track B should enter offset into its chorus by 2 beats rather than right at the chorus start. This lands B on a stronger hit and naturally creates vocal overlap with track A's ending. The offset is adjustable via feedback.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "stem_layer",
+      "context": "b_entry_offset"
+    }
+  },
+  "rule_f7ebf6da6f": {
+    "text": "Never use hard cuts between tracks. Always blend smoothly using crossfades, stem layering, or effects. Abrupt stops break the flow and energy of the set.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "general",
+      "context": "no_cuts"
+    }
+  },
+  "rule_71a4fb7a7a": {
+    "text": "Track B should enter at a musically meaningful point — the start of a chorus or verse, snapped to the nearest downbeat. Don't start B in the middle of a phrase.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "general",
+      "context": "b_entry"
+    }
+  },
+  "rule_c57c79c779": {
+    "text": "The first track in a set should play from the beginning to establish the vibe. Don't cut into the middle of the opening track.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "general",
+      "context": "first_track"
+    }
+  },
+  "rule_cc783c4457": {
+    "text": "Use lyric cues to synchronize transitions when both tracks share a common word. The shared word creates a natural connection between the two tracks.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "stem_layer",
+      "context": "lyric_sync"
+    }
+  },
+  "rule_76b36acfa3": {
+    "text": "Never use a raw crossfade between two full tracks as it clashes vocals and instruments together. Instead, crossfade should only be used within other transitions — for example, crossfading B's instrumental under A in a stem layer, then crossfading from the layer into B's full mix over one bar to bring in vocals smoothly.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "stem_layer",
+      "context": "no_raw_crossfade"
+    }
+  },
+  "rule_a840b195aa": {
+    "text": "When there is a significant energy drop between track A and track B, use echo_out to smooth the gap. The echo creates a natural decay that bridges the energy difference.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "echo_out",
+      "context": "energy_drop"
+    }
+  },
+  "rule_f6e9f085c7": {
+    "text": "When track A has a low-energy outro and track B has a high-energy intro or chorus, vinyl_brake on A followed by a drop into B creates an exciting moment.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "vinyl_brake",
+      "context": "energy_contrast"
+    }
+  },
+  "rule_85536aa1dc": {
+    "text": "When both tracks have similar BPM (within 3%), use stem_layer and transition during track A's second chorus. Cut track A's instrumental and layer B's full instrumental under A's vocals. Only fade the very last word of A's vocals, then hard-switch to B. The second chorus is preferred because the listener has heard the first chorus and verse — the transition feels natural and B's instrumental fills the gap left by removing A's beats.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "stem_layer",
+      "context": "same_bpm_chorus"
+    }
+  },
+  "fb_fc896e599b": {
+    "text": "Transition from 'Just Keep Watching' to 'Gunna - fukumean [Official Visualizer]' using eq_mix. Rating: 5/5. Notes: Track B instumental perfectly lined up with Track A vocals during overlay. Track A structure: intro, chorus, verse, chorus, verse, chorus, verse. Track B structure: intro, chorus, verse, chorus, verse.",
+    "metadata": {
+      "type": "feedback",
+      "strategy": "eq_mix",
+      "rating": 5,
+      "timestamp": 1775523062.2519937,
+      "track_a": "Just Keep Watching",
+      "track_b": "Gunna - fukumean [Official Visualizer]",
+      "a_has_bridge": false
+    }
+  },
+  "rule_71843db706": {
+    "text": "For same BPM stem layer transitions, beat alignment is critical. Detect B's first beat onset from the raw waveform, then place B so that its first beat lands exactly on A's beat grid. Do not time-stretch either track. Do not fade A's vocals during the overlay — both play at full volume. B starts from sample 0 with its full intro (no trimming). The overlay duration equals B's intro length before vocals start.",
+    "metadata": {
+      "type": "rule",
+      "strategy": "stem_layer",
+      "context": "same_bpm_alignment"
+    }
+  },
+  "fb_c6b715dc56": {
+    "text": "Strategy: eq_mix. Rating: 1/5. Same BPM (132). Track A sections: intro chorus chorus chorus chorus chorus chorus chorus chorus chorus chorus bridge outro. Track A has multiple choruses. Track A has bridge. Track B sections: intro verse verse verse verse chorus verse chorus verse bridge chorus verse verse. Track B has intro before vocals. Keys: G#m to C. Both tracks have stems. User notes: Just jumped between the two songs, no transition happened. Tracks: 'Gangnam Style (강남스타일)' to 'Aakalesthe Full  Song Shankardada ZindabadChiranjeevi ,DSP Hits  Aditya Music'.",
+    "metadata": {
+      "type": "feedback",
+      "strategy": "eq_mix",
+      "rating": 1,
+      "timestamp": 1775526095.157351,
+      "track_a": "Gangnam Style (강남스타일)",
+      "track_b": "Aakalesthe Full  Song Shankardada ZindabadChiranjeevi ,DSP Hits  Aditya Music",
+      "bpm_a": 132,
+      "bpm_b": 132,
+      "same_bpm": true,
+      "a_has_bridge": true,
+      "a_chorus_count": 10,
+      "b_starts_with": "intro"
+    }
+  },
+  "fb_49152b406e": {
+    "text": "Strategy: eq_mix. Rating: 2/5. Same BPM (132). Track A sections: intro chorus chorus chorus chorus chorus chorus chorus chorus chorus chorus bridge outro. Track A has multiple choruses. Track A has bridge. Track B sections: intro verse verse verse verse chorus verse chorus verse bridge chorus verse verse. Track B has intro before vocals. Keys: G#m to C. Both tracks have stems. User notes: There was an attempt at a transition but vocals of Track B cut into Track A and also transiiton area wasn't at a good selected segment over Track A. After transition, there was just music of Track B so felt like dead space.. Tracks: 'Gangnam Style (강남스타일)' to 'Aakalesthe Full  Song Shankardada ZindabadChiranjeevi ,DSP Hits  Aditya Music'.",
+    "metadata": {
+      "type": "feedback",
+      "strategy": "eq_mix",
+      "rating": 2,
+      "timestamp": 1775526287.7857764,
+      "track_a": "Gangnam Style (강남스타일)",
+      "track_b": "Aakalesthe Full  Song Shankardada ZindabadChiranjeevi ,DSP Hits  Aditya Music",
+      "bpm_a": 132,
+      "bpm_b": 132,
+      "same_bpm": true,
+      "a_has_bridge": true,
+      "a_chorus_count": 10,
+      "b_starts_with": "intro"
+    }
+  },
+  "fb_3868c2e084": {
+    "text": "Strategy: eq_mix. Rating: 1/5. Same BPM (132). Track A sections: intro verse chorus verse chorus outro. Track A has multiple choruses. Track B sections: intro verse verse verse verse chorus verse chorus verse bridge chorus verse verse. Track B has intro before vocals. Keys: G#m to C. Both tracks have stems. User notes: It would be most optimized for track b to coem in during a chrous segment or any other catchy, high energy segments. Also not a great spot on Track A to transition over.. Tracks: 'Gangnam Style (강남스타일)' to 'Aakalesthe Full  Song Shankardada ZindabadChiranjeevi ,DSP Hits  Aditya Music'.",
+    "metadata": {
+      "type": "feedback",
+      "strategy": "eq_mix",
+      "rating": 1,
+      "timestamp": 1775526497.1021066,
+      "track_a": "Gangnam Style (강남스타일)",
+      "track_b": "Aakalesthe Full  Song Shankardada ZindabadChiranjeevi ,DSP Hits  Aditya Music",
+      "bpm_a": 132,
+      "bpm_b": 132,
+      "same_bpm": true,
+      "a_has_bridge": false,
+      "a_chorus_count": 2,
+      "b_starts_with": "intro"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/Scripts/python -c \"import scipy; print\\(''scipy ok''\\)\")",
+      "Bash(.venv/Scripts/python -c \"from mixing.transition_decider import get_eligible_transitions; print\\(''decider OK''\\)\")",
+      "Bash(.venv/Scripts/pip install:*)",
+      "Bash(.venv/Scripts/python -c \"import torch; print\\(f''PyTorch {torch.__version__}''\\); print\\(f''CUDA available: {torch.cuda.is_available\\(\\)}''\\); print\\(f''GPU: {torch.cuda.get_device_name\\(0\\) if torch.cuda.is_available\\(\\) else \"\"N/A\"\"}''\\)\")",
+      "Bash(python -c \"import pathlib, shutil; [shutil.rmtree\\(p\\) for p in pathlib.Path\\(''c:/VSCode/bot''\\).rglob\\(''__pycache__''\\)]\")",
+      "Bash(python main.py)",
+      "Bash(python -c \"import pathlib, shutil; [shutil.rmtree\\(p\\) for p in pathlib.Path\\(''''c:/VSCode/bot''''\\).rglob\\(''''__pycache__''''\\)]\")",
+      "Bash(python -c \":*)"
+    ]
+  }
+}
