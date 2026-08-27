@@ -31,7 +31,8 @@ def create_transition(
     track_b: Track,
     strategy_name: str | None = None,
     lyric_cue: object = None,
-) -> np.ndarray:
+    return_strategy: bool = False,
+) -> np.ndarray | tuple[np.ndarray, str]:
     """Create a transition between two analyzed tracks.
 
     If strategy_name is given, uses that specific strategy.
@@ -69,5 +70,7 @@ def create_transition(
     # Pass lyric_cue to strategies that accept it
     strategy = option.strategy
     if lyric_cue is not None and hasattr(strategy, 'apply_with_cue'):
-        return strategy.apply_with_cue(track_a, track_b, lyric_cue)
-    return strategy.apply(track_a, track_b)
+        audio = strategy.apply_with_cue(track_a, track_b, lyric_cue)
+    else:
+        audio = strategy.apply(track_a, track_b)
+    return (audio, strategy.name) if return_strategy else audio

@@ -21,7 +21,7 @@ def _choose_downbeat_phase(
     beat_frames: np.ndarray,
     onset_env: np.ndarray,
     low_band_env: np.ndarray,
-) -> int:
+) -> tuple[int, float]:
     """Choose the best 4-beat phase to treat as downbeats.
 
     Beat tracking gives quarter-note pulses, but not bar starts. We score
@@ -29,31 +29,36 @@ def _choose_downbeat_phase(
     the strongest one as the likely downbeat phase.
     """
     if len(beat_frames) < 8:
-        return 0
+        return 0, 0.0
 
     n = min(len(onset_env), len(low_band_env))
     if n == 0:
-        return 0
+        return 0, 0.0
 
     onset = onset_env[:n]
     bass = low_band_env[:n]
 
-    best_phase = 0
-    best_score = -np.inf
+    phase_scores: list[float] = []
     for phase in range(4):
         phase_frames = beat_frames[phase::4]
         if len(phase_frames) == 0:
+            phase_scores.append(float("-inf"))
             continue
         idx = np.clip(phase_frames.astype(int), 0, n - 1)
         onset_score = float(np.mean(onset[idx]))
         bass_score = float(np.mean(bass[idx]))
         # Slightly favor onset transients but still bias to bass impact.
         score = 0.65 * onset_score + 0.35 * bass_score
-        if score > best_score:
-            best_score = score
-            best_phase = phase
+        phase_scores.append(score)
 
-    return best_phase
+    best_phase = int(np.argmax(phase_scores))
+    finite = sorted((s for s in phase_scores if np.isfinite(s)), reverse=True)
+    if len(finite) < 2 or finite[0] <= 0:
+        confidence = 0.0
+    else:
+        # Relative winning margin: 0 means ambiguous, 1 means decisive.
+        confidence = max(0.0, min(1.0, (finite[0] - finite[1]) / finite[0]))
+    return best_phase, confidence
 
 
 def detect_beats(track: Track) -> Track:
@@ -90,6 +95,8 @@ def detect_beats(track: Track) -> Track:
     if beat_frames.size == 0:
         track.beats = np.array([], dtype=np.float32)
         track.downbeats = np.array([], dtype=np.float32)
+        track.downbeat_phase = None
+        track.downbeat_confidence = 0.0
         logger.warning("No beats detected for %s", track.title)
         return track
 
@@ -100,17 +107,21 @@ def detect_beats(track: Track) -> Track:
 
     # Estimate downbeats (every 4 beats, assuming 4/4 time) with phase alignment.
     if len(beat_times) >= 4:
-        phase = _choose_downbeat_phase(beat_frames, onset_env, low_band_env)
-        track.downbeats = beat_times[phase::4]
+        phase, confidence = _choose_downbeat_phase(beat_frames, onset_env, low_band_env)
+        track.downbeats = beat_times[phase::track.meter]
     else:
         phase = 0
+        confidence = 0.0
         track.downbeats = beat_times
+    track.downbeat_phase = phase
+    track.downbeat_confidence = confidence
 
     logger.info(
-        "Detected %d beats (%d downbeats, phase=%d) for %s",
+        "Detected %d beats (%d downbeats, phase=%d, confidence=%.2f) for %s",
         len(beat_times),
         len(track.downbeats),
         phase,
+        confidence,
         track.title,
     )
     return track
@@ -139,36 +150,34 @@ def refine_beats(track: Track) -> Track:
 
     # Build the precise beat grid from onset-correlation
     precise_beats = np.arange(phase, duration, interval)
-    # Build precise downbeat grid (every 4 beats)
-    precise_downbeats = np.arange(phase, duration, interval * 4)
-
-    if len(precise_beats) < 4 or len(precise_downbeats) < 2:
+    if len(precise_beats) < track.meter:
         return track
 
-    # Snap each detected downbeat to the nearest precise downbeat
-    refined_downbeats = []
-    for db in track.downbeats:
-        diffs = np.abs(precise_downbeats - db)
-        nearest_idx = int(np.argmin(diffs))
-        snapped = float(precise_downbeats[nearest_idx])
-        # Only snap if reasonably close (within half a beat interval)
-        if diffs[nearest_idx] < interval * 0.5:
-            refined_downbeats.append(snapped)
-        else:
-            refined_downbeats.append(float(db))
-
-    old_db = track.downbeats
-    track.downbeats = np.array(refined_downbeats, dtype=np.float64)
+    # Anchor the refined bar grid to the originally detected musical
+    # downbeat.  The BPM phase is only a quarter-note phase; treating it as
+    # beat one is what caused correctly synced beats but shifted bars.
+    old_db = np.asarray(track.downbeats, dtype=np.float64)
+    anchor = float(old_db[0])
+    anchor_idx = int(np.argmin(np.abs(precise_beats - anchor)))
+    while anchor_idx - track.meter >= 0:
+        anchor_idx -= track.meter
+    track.downbeats = precise_beats[anchor_idx::track.meter].astype(np.float64)
     track.beats = precise_beats
 
-    # Log the max correction applied
-    corrections = np.abs(track.downbeats[:len(old_db)] - old_db[:len(track.downbeats)])
+    # Report fixed-grid timing drift independently from bar phase. Comparing
+    # old downbeats only with new downbeats can show nearly one bar when the
+    # two estimators accumulated tempo drift, which looked like a phase bug.
+    nearest_beats = np.array([
+        precise_beats[np.argmin(np.abs(precise_beats - db))] for db in old_db
+    ])
+    corrections = np.abs(nearest_beats - old_db)
     if len(corrections) > 0:
         max_corr = float(np.max(corrections))
         mean_corr = float(np.mean(corrections))
         logger.info(
-            "Refined %d downbeats for %s (max correction: %.0fms, mean: %.0fms)",
-            len(track.downbeats), track.title,
+            "Refined bar grid for %s (%d downbeats; fixed-grid beat drift: "
+            "max %.0fms, mean %.0fms)",
+            track.title, len(track.downbeats),
             max_corr * 1000, mean_corr * 1000,
         )
 

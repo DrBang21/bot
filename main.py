@@ -121,8 +121,10 @@ def main() -> None:
                          opt.score, opt.strategy.name)
 
         # Execute the best transition — returns complete [A...blend...B] audio
-        transition = create_transition(seg_a, seg_b, lyric_cue=lyric_cue)
-        strategies_used.append(options[0].strategy.name if options else "unknown")
+        transition, actual_strategy = create_transition(
+            seg_a, seg_b, lyric_cue=lyric_cue, return_strategy=True,
+        )
+        strategies_used.append(actual_strategy)
 
         if len(output_audio) == 0:
             output_audio = transition

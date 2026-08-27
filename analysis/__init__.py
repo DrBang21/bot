@@ -1,6 +1,6 @@
 import logging
 
-from analysis.beat_tracker import detect_beats
+from analysis.beat_tracker import detect_beats, refine_beats
 from analysis.bpm_detector import detect_bpm
 from analysis.key_detector import detect_key
 from analysis.structure_analyzer import detect_structure
@@ -13,6 +13,7 @@ def analyze(track: Track, separate: bool = True, lyrics: bool = True) -> Track:
     """Run full analysis pipeline: BPM, beats, key, structure, stems, and lyrics."""
     detect_beats(track)
     detect_bpm(track)
+    refine_beats(track)
     detect_key(track)
     detect_structure(track)
 

@@ -52,6 +52,9 @@ class Track:
     beats: Optional[np.ndarray] = field(default=None, repr=False)
     key: Optional[str] = None
     downbeats: Optional[np.ndarray] = field(default=None, repr=False)
+    downbeat_phase: Optional[int] = None
+    downbeat_confidence: float = 0.0
+    meter: int = 4
 
     # Stem separation (set by stem separator)
     stems: Optional[Stems] = field(default=None, repr=False)

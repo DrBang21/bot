@@ -200,6 +200,11 @@ def extract_segment(track: Track, start_sec: float, end_sec: float) -> Track:
         mask = (track.downbeats >= start_sec) & (track.downbeats < end_sec)
         trimmed.downbeats = track.downbeats[mask] - start_sec
 
+    if track._bpm_phase is not None:
+        trimmed._bpm_phase = (track._bpm_phase - start_sec) % (60.0 / track.bpm) if track.bpm else None
+    if track._first_beat is not None:
+        trimmed._first_beat = max(0.0, track._first_beat - start_sec)
+
     # Adjust sections
     if track.sections is not None:
         trimmed.sections = []

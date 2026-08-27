@@ -28,6 +28,54 @@ logger = logging.getLogger("dj.mixing.strategies")
 
 # Maximum BPM difference (%) for crossfade eligibility (after double/half time)
 CROSSFADE_BPM_THRESHOLD = 0.05  # 5%
+MIN_DOWNBEAT_CONFIDENCE = 0.10
+
+
+def _has_reliable_downbeats(*tracks: Track) -> bool:
+    """Whether sustained bar-aligned overlap is safe for all tracks."""
+    return all(
+        track.downbeats is not None
+        and len(track.downbeats) >= 2
+        and track.downbeat_confidence >= MIN_DOWNBEAT_CONFIDENCE
+        for track in tracks
+    )
+
+
+def _rms(audio: np.ndarray | None) -> float:
+    if audio is None or len(audio) == 0:
+        return 0.0
+    return float(np.sqrt(np.mean(np.square(audio, dtype=np.float64))))
+
+
+def _quiet_b_downbeat(track: Track, max_candidates: int = 8) -> float:
+    """Choose an early bar start with the least vocal/bass/other congestion."""
+    if track.downbeats is None or len(track.downbeats) == 0:
+        return 0.0
+    if track.stems is None:
+        return float(track.downbeats[0])
+    sr = track.sample_rate
+    bar_samples = bars_to_samples(track.bpm or 120.0, 1, sr)
+    best = (float("inf"), float(track.downbeats[0]))
+    for downbeat in track.downbeats[:max_candidates]:
+        start = int(float(downbeat) * sr)
+        end = start + bar_samples
+        vocal = _rms(track.stems.vocals[start:end] if track.stems.vocals is not None else None)
+        bass = _rms(track.stems.bass[start:end] if track.stems.bass is not None else None)
+        melody = _rms(track.stems.other[start:end] if track.stems.other is not None else None)
+        # Vocals are a hard concern; dense bass/melody are secondary.
+        score = vocal * 4.0 + bass * 1.5 + melody
+        if score < best[0]:
+            best = (score, float(downbeat))
+    return best[1]
+
+
+def _slice_pad(audio: np.ndarray | None, start: int, length: int) -> np.ndarray:
+    if audio is None:
+        return np.zeros(length, dtype=np.float32)
+    result = np.asarray(audio[start:start + length], dtype=np.float32).copy()
+    if len(result) < length:
+        result = np.pad(result, (0, length - len(result)))
+    return result
 
 
 class TransitionStrategy(ABC):
@@ -277,6 +325,8 @@ class FilterMixTransition(TransitionStrategy):
             return False
         if track_a.beats is None or track_b.beats is None:
             return False
+        if not _has_reliable_downbeats(track_a, track_b):
+            return False
         return bpm_difference_pct(track_a.bpm, track_b.bpm) <= CROSSFADE_BPM_THRESHOLD
 
     def score(self, track_a: Track, track_b: Track) -> float:
@@ -332,6 +382,8 @@ class EQMixTransition(TransitionStrategy):
         if track_a.bpm is None or track_b.bpm is None:
             return False
         if track_a.beats is None or track_b.beats is None:
+            return False
+        if not _has_reliable_downbeats(track_a, track_b):
             return False
         return bpm_difference_pct(track_a.bpm, track_b.bpm) <= CROSSFADE_BPM_THRESHOLD
 
@@ -421,6 +473,8 @@ class LoopInTransition(TransitionStrategy):
             return False
         if track_b.beats is None or len(track_b.beats) < 5:
             return False
+        if not _has_reliable_downbeats(track_a, track_b):
+            return False
         return bpm_difference_pct(track_a.bpm, track_b.bpm) <= CROSSFADE_BPM_THRESHOLD
 
     def score(self, track_a: Track, track_b: Track) -> float:
@@ -502,6 +556,13 @@ class StemLayerTransition(TransitionStrategy):
 
     def is_eligible(self, track_a: Track, track_b: Track) -> bool:
         if track_a.bpm is None or track_b.bpm is None:
+            return False
+        if not _has_reliable_downbeats(track_a, track_b):
+            logger.info(
+                "Stem layer disabled: ambiguous downbeats (A=%.2f, B=%.2f, need %.2f)",
+                track_a.downbeat_confidence, track_b.downbeat_confidence,
+                MIN_DOWNBEAT_CONFIDENCE,
+            )
             return False
         if track_a.stems is None or track_b.stems is None:
             return False
@@ -636,7 +697,8 @@ class StemLayerTransition(TransitionStrategy):
             layer_start_sec = max(0.0, duration_a - (default_layer_samples / sr) - 1.0)
             switch_a_sec = layer_start_sec + max_layer_dur
 
-        # Lyric cue switch — only for non-bridge transitions.
+        # Lyric cue may suggest the neighbourhood, but structural changes are
+        # always moved to a bar boundary below.
         # Bridge transitions always switch at bridge end for a clean handoff.
         if not use_bridge_style:
             min_layer_for_cue = max_layer_dur * 0.5
@@ -655,38 +717,21 @@ class StemLayerTransition(TransitionStrategy):
 
         switch_a_sec = min(switch_a_sec, duration_a)
 
-        # --- Beat-align layer_start so B's first beat lands on A's grid ---
-        # B's audio starts at layer_start in the mix.  B's first beat is
-        # at B_phase seconds into B's audio.  For the beats to align,
-        # layer_start + B_phase must coincide with an A beat.
-        # So: layer_start = A_beat - B_phase
-        if track_a.beats is not None and len(track_a.beats) > 0:
-            beats = track_a.beats
-
-            # B's first beat: where the music actually starts in B's audio.
-            # layer_start + b_first_beat must land on an A beat so the
-            # two tracks are grid-aligned.
-            b_first_beat = getattr(track_b, '_first_beat', None) or 0.0
-
-            # Find the first A beat AT OR AFTER (layer_start + b_first_beat).
-            target = layer_start_sec + b_first_beat
-            future_beats = beats[beats >= target]
-            if len(future_beats) > 0:
-                aligned_start = float(future_beats[0]) - b_first_beat
-                logger.info("Layer start beat-aligned: %.2fs -> %.2fs "
-                             "(A beat %.3fs - B first_beat %.3fs)",
-                             layer_start_sec, aligned_start,
-                             float(future_beats[0]), b_first_beat)
-                layer_start_sec = aligned_start
-
-            # Snap switch to the nearest beat at or before
-            past_switch = beats[beats <= switch_a_sec + 0.05]
-            if len(past_switch) > 0:
-                snapped = float(past_switch[-1])
-                if snapped >= layer_start_sec + 2.0:
-                    logger.info("Switch point snapped to A beat: %.2fs -> %.2fs",
-                                 switch_a_sec, snapped)
-                    switch_a_sec = snapped
+        # Snap the handoff to an A downbeat, then count back an exact number
+        # of complete bars. This makes start and switch phrase-compatible.
+        a_downbeats = track_a.downbeats
+        if a_downbeats is not None and len(a_downbeats) >= 2:
+            past = a_downbeats[a_downbeats <= switch_a_sec + 0.05]
+            if len(past):
+                switch_idx = int(np.searchsorted(a_downbeats, past[-1]))
+                preferred_bars = max(4, int(config.transition_bars))
+                # Prefer conventional 4/8 bar phrases.
+                preferred_bars = 8 if preferred_bars >= 8 else 4
+                start_idx = max(0, switch_idx - preferred_bars)
+                layer_start_sec = float(a_downbeats[start_idx])
+                switch_a_sec = float(a_downbeats[switch_idx])
+                logger.info("Bar-aligned layer: A downbeat %.3fs -> %.3fs (%d bars)",
+                            layer_start_sec, switch_a_sec, switch_idx - start_idx)
 
         layer_start = max(0, int(layer_start_sec * sr))
         switch_a_sample = min(int(switch_a_sec * sr), len(track_a.audio))
@@ -695,31 +740,43 @@ class StemLayerTransition(TransitionStrategy):
         # --- Phase 1: Track A plays normally up to layer zone ---
         phase1 = track_a.audio[:layer_start].copy()
 
-        # --- Phase 2: A vocals + B full audio ---
-        # At the chorus start, A's instrumental cuts completely.
-        # B starts playing from the beginning — its intro is ~14s of
-        # pure instrumental (no vocals), so no clash.
-        # A's vocal stem plays on top at full volume.
-        # Only the very last word of A fades out.
-        b_zone = track_b.audio[:phase2_len].copy()
-        if len(b_zone) < phase2_len:
-            b_zone = np.pad(b_zone, (0, phase2_len - len(b_zone)))
+        # B enters on a real downbeat. Choose among its early bars for the
+        # sparsest one, then stretch only instrumental stems for the layer.
+        b_entry_sec = _quiet_b_downbeat(track_b)
+        b_entry_sample = int(b_entry_sec * sr)
+        rate = bpm_a / bpm_b
+        source_len = max(1, int(np.ceil(phase2_len * rate)))
+        stems_b = track_b.stems
+        drums = _slice_pad(stems_b.drums, b_entry_sample, source_len)
+        bass = _slice_pad(stems_b.bass, b_entry_sample, source_len)
+        other = _slice_pad(stems_b.other, b_entry_sample, source_len)
+        drums = time_stretch_audio(drums, bpm_b, bpm_a)[:phase2_len]
+        bass = time_stretch_audio(bass, bpm_b, bpm_a)[:phase2_len]
+        other = time_stretch_audio(other, bpm_b, bpm_a)[:phase2_len]
+        drums = np.pad(drums, (0, max(0, phase2_len - len(drums))))
+        bass = np.pad(bass, (0, max(0, phase2_len - len(bass))))
+        other = np.pad(other, (0, max(0, phase2_len - len(other))))
 
-        mix_len = min(phase2_len, len(b_zone))
+        # Progressive ownership: drums first, melody in the second half,
+        # bass only in the final quarter. B vocals remain muted throughout.
+        progress = np.linspace(0.0, 1.0, phase2_len, dtype=np.float32)
+        drum_gain = np.clip(progress * 4.0, 0.0, 1.0)
+        other_gain = np.clip((progress - 0.50) * 4.0, 0.0, 1.0)
+        bass_gain = np.clip((progress - 0.75) * 4.0, 0.0, 1.0)
+        b_instrumental = drums * drum_gain + other * other_gain + bass * bass_gain
 
-        if (track_a.stems is not None
-                and track_a.stems.vocals is not None):
-            a_vocals_zone = track_a.stems.vocals[layer_start:switch_a_sample].copy()
-            a_vocals_zone = a_vocals_zone[:mix_len]
-            # A vocals play completely untouched — no fade at all.
-            phase2 = a_vocals_zone + b_zone[:mix_len]
-            logger.info("Phase 2: A vocals + B full audio (%.1fs)", mix_len / sr)
-        else:
-            phase2 = track_a.audio[layer_start:switch_a_sample].copy() + b_zone[:mix_len]
+        a_vocals = _slice_pad(track_a.stems.vocals, layer_start, phase2_len)
+        # Fade A vocals during the last bar so vocals never overlap B's reveal.
+        final_bar = min(bars_to_samples(bpm_a, 1, sr), phase2_len)
+        if final_bar:
+            a_vocals[-final_bar:] *= np.linspace(1.0, 0.0, final_bar, dtype=np.float32)
+        phase2 = a_vocals + b_instrumental
 
-        # --- Phase 3: B continues from where Phase 2 left off ---
-        # No switch logic needed — B just keeps playing.
-        phase3 = track_b.audio[phase2_len:].copy()
+        # Continue B at the source position consumed by the stretched layer.
+        b_release_sample = min(len(track_b.audio), b_entry_sample + source_len)
+        phase3 = track_b.audio[b_release_sample:].copy()
+        logger.info("Phase 2: A vocals + progressive B stems; B downbeat %.3fs, "
+                    "release sample %d", b_entry_sec, b_release_sample)
 
         # Micro-fade at the seam for click prevention
         micro = min(int(0.005 * sr), len(phase2), max(1, len(phase3)))

@@ -24,6 +24,21 @@ def time_stretch(track: Track, target_bpm: float) -> Track:
     # Update metadata to reflect the stretch
     if track.beats is not None:
         track.beats = track.beats / rate
+    if track.downbeats is not None:
+        track.downbeats = track.downbeats / rate
+    if track.sections is not None:
+        for section in track.sections:
+            section.start /= rate
+            section.end /= rate
+    if track._bpm_phase is not None:
+        track._bpm_phase /= rate
+    if track._first_beat is not None:
+        track._first_beat /= rate
+    if track.stems is not None:
+        for name in ("vocals", "drums", "bass", "other"):
+            stem = getattr(track.stems, name)
+            if stem is not None:
+                setattr(track.stems, name, librosa.effects.time_stretch(stem, rate=rate))
     track.duration_seconds = track.num_samples / track.sample_rate
     track.bpm = target_bpm
 

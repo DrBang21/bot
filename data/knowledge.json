@@ -165,5 +165,22 @@
       "a_chorus_count": 2,
       "b_starts_with": "intro"
     }
+  },
+  "fb_369a18ab92": {
+    "text": "Strategy: stem_layer. Rating: 1/5. Different BPM (130 vs 124). Track A sections: intro verse verse verse chorus chorus verse. Track A has multiple choruses. Track B sections: intro verse chorus verse chorus verse chorus verse. Track B has intro before vocals. Keys: Fm to Dm. Both tracks have stems. Stem layer transition. A vocals over B instrumental. User notes: ginning choose section in track one where there is no beat. Tracks: 'MAUVAIS DJO - Pilé (Gospel Version)' to 'Arabic Kuthu - Video Song  Beast  Thalapathy Vijay  Pooja Hegde  Sun Pictures  Nelson  Anirudh'.",
+    "metadata": {
+      "type": "feedback",
+      "strategy": "stem_layer",
+      "rating": 1,
+      "timestamp": 1787814218.715224,
+      "track_a": "MAUVAIS DJO - Pilé (Gospel Version)",
+      "track_b": "Arabic Kuthu - Video Song  Beast  Thalapathy Vijay  Pooja Hegde  Sun Pictures  Nelson  Anirudh",
+      "bpm_a": 130,
+      "bpm_b": 124,
+      "same_bpm": false,
+      "a_has_bridge": false,
+      "a_chorus_count": 2,
+      "b_starts_with": "intro"
+    }
   }
 }
